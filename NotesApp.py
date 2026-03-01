@@ -1,5 +1,6 @@
 import customtkinter as ctk
 import nltk
+from textblob import TextBlob
 from tkinter import messagebox
 import warnings
 warnings.filterwarnings("ignore", message=".*chardet.*")
@@ -9,25 +10,67 @@ from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.luhn import LuhnSummarizer
 
+def copytoclipboard(label_object):
+    window.clipboard_clear()
+    text_to_copy = label_object.cget("text")
+    window.clipboard_append(str(text_to_copy).replace("Proofread Text:\n", ""))
+    window.update() 
+
 def summarize():
+    for widget in proofframe.winfo_children():
+        widget.destroy()
+    proofframe.pack_forget()
     sumtext = textframe.get("1.0", "end-1c")
     if not sumtext.strip():
+        textframe.pack_forget()
+        summaryframe.pack_forget()
+        textframe.configure(height=920)
+        textframe.pack(pady=10, padx=10)
+        window.update()
         return
-    parser = PlaintextParser.from_string(sumtext, Tokenizer("english"))
-    summarizer = LuhnSummarizer()
-    summary = summarizer(parser.document, 1)
-    clean_summary = " ".join([str(sentence) for sentence in summary])
-    textframe.pack_forget()
+    else:
+        parser = PlaintextParser.from_string(sumtext, Tokenizer("english"))
+        summarizer = LuhnSummarizer()
+        summary = summarizer(parser.document, 1)
+        clean_summary = " ".join([str(sentence) for sentence in summary])
+        textframe.pack_forget()
+        for widget in summaryframe.winfo_children():
+            widget.destroy()
+        sumlabel = ctk.CTkLabel(summaryframe, text=f"Summary:\n{clean_summary.lstrip()}", justify='left', wraplength=720)
+        summaryframe.pack_forget()
+        sumlabel.pack_forget()
+        sumlabel.pack(padx=10, pady=10, anchor='nw')
+        textframe.configure(height=400)
+        textframe.pack(pady=10, padx=10)
+        summaryframe.pack(pady=10, padx=10, fill='both', expand=True)
+        window.update()
+
+def proof():
     for widget in summaryframe.winfo_children():
         widget.destroy()
-    sumlabel = ctk.CTkLabel(summaryframe, text=f"Summary:\n{clean_summary.lstrip()}", justify='left', wraplength=720)
     summaryframe.pack_forget()
-    sumlabel.pack_forget()
-    sumlabel.pack(padx=10, pady=10, anchor='nw')
-    textframe.configure(height=400)
-    textframe.pack(pady=10, padx=10)
-    summaryframe.pack(pady=10, padx=10, fill='both', expand=True)
-    window.update()
+    prooftext = TextBlob(textframe.get("1.0", "end-1c"))
+    if not prooftext.strip():
+        textframe.pack_forget()
+        summaryframe.pack_forget()
+        textframe.configure(height=920)
+        textframe.pack(pady=10, padx=10)
+        window.update()
+        return
+    else:
+        for widget in proofframe.winfo_children():
+            widget.destroy()
+        prooflabel = ctk.CTkLabel(proofframe, text=f"Proofread Text:\n{prooftext.correct()}", justify='left', wraplength=720)
+        copybutton = ctk.CTkButton(proofframe, text="❏", command=lambda: copytoclipboard(prooflabel), fg_color="#10975D", hover_color="#0E7B4C", height=30, width=30)
+        copybutton.pack_forget()
+        prooflabel.pack_forget()
+        proofframe.pack_forget()
+        prooflabel.pack(padx=10, pady=10, anchor='nw')
+        copybutton.pack(padx=10, pady=2, anchor='w')
+        textframe.configure(height=400)
+        textframe.pack(pady=10, padx=10)
+        proofframe.pack(pady=10, padx=10, fill='both', expand=True)
+        window.update()
 
 savefile = "savedata.json"
 
@@ -126,7 +169,12 @@ textframe.pack(pady=10, padx=10, side='top', fill='both', expand=True)
 
 sumbutton = ctk.CTkButton(buttonframe, fg_color="#10975D", hover_color="#0E7B4C", text="Summarize", command=summarize)
 sumbutton.pack(side='left', pady=5, padx=5)
+
 summaryframe = ctk.CTkFrame(appframe, height=200, width=760, border_color="#10975D", border_width=2, fg_color="#1F1F1F")
+proofframe = ctk.CTkFrame(appframe, height=200, width=760, border_color="#10975D", border_width=2, fg_color="#1F1F1F")
+
+checkbutton = ctk.CTkButton(buttonframe,fg_color="#10975D", hover_color="#0E7B4C", text="Proofread", command=proof)
+checkbutton.pack(side='left', pady=5, padx=5)
 
 if len(notes) < 1:
     notes.append("My Note")
