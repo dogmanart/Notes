@@ -74,9 +74,13 @@ def proof():
 
 savefile = "savedata.json"
 
-def save():
-    data = {"names":notes,"text":notetext}
-    with open(savefile, 'w') as f:
+def save(event=None):
+    global selectednote
+    if is_loading: return 
+    if notes:
+        notetext[selectednote] = textframe.get("1.0", "end-1c")
+        data = {"names": notes, "text": notetext}
+        with open(savefile, 'w') as f:
             json.dump(data, f)
 
 def load():
@@ -86,10 +90,15 @@ def load():
             data = json.load(f)
             notes = data.get("names", [])
             notetext = data.get("text", [])
+        if not notes:
+            notes = ["My Note"]
+            notetext = [""]
     except (FileNotFoundError, json.JSONDecodeError):
-        notes, notetext = [], []
+        notes = ["My Note"]
+        notetext = [""]
 
 notes = []
+is_loading = True
 notetext = []
 
 def destroywindow():
@@ -105,6 +114,9 @@ appframe = ctk.CTkFrame(window, width=1000, height=1000, fg_color="#181818")
 appframe.pack(side='left', expand=True)
 appframe.pack_propagate(False)
 
+textframe = ctk.CTkTextbox(appframe, height=920, width=760, border_color="#10975D", border_width=2, wrap='word')
+textframe.bind("<KeyRelease>", save)
+
 ctk.set_appearance_mode("dark")
 
 notesframe = ctk.CTkScrollableFrame(appframe, height=980, width=200)
@@ -115,7 +127,6 @@ def newnote():
     notetext.append("")
     refreshnotes()
 
-
 newnotebut = ctk.CTkButton(notesframe, text="New Note", font=("Arial", 11,'bold'), height=60, width=190, fg_color="#10975D", hover_color="#0E7B4C", corner_radius=17, command=newnote)
 newnotebut.pack(pady=5, padx=5, )
 
@@ -124,26 +135,28 @@ load()
 def deletenote(index):
     global selectednote
     if messagebox.askyesno("Warning", "Do you really want to delete this note forever?"):
-        notes.pop(index)
-        notetext.pop(index)
-        selectednote = 0
-        refreshnotes()
+        if len(notes) > 1:
+            notes.pop(index)
+            notetext.pop(index)
+            selectnote(0)
+            refreshnotes()
+        else:
+            messagebox.showerror("Action Not Available", "You can't delete the only note.")
     else: pass
 
-selectednote = 0
+selectednote = ""
 
 def selectnote(index):
     global selectednote
-    summaryframe.pack_forget()
-    buttonframe.pack(pady=10, padx=10, side='top')
-    textframe.pack(pady=10, padx=10, side='top', fill='both', expand=True)
-    if selectednote != index:
+    if index != selectednote:
         textframe.delete("1.0", "end")
         textframe.insert("1.0", notetext[index])
         selectednote = index
-    else: 
+        summaryframe.pack_forget()
+        buttonframe.pack(pady=10, padx=10, side='top')
+        textframe.pack(pady=10, padx=10, side='top', fill='both', expand=True)
+    else:
         deletenote(index)
-    save()
     refreshnotes()
 
 def refreshnotes():
@@ -164,7 +177,6 @@ buttonframe = ctk.CTkFrame(appframe, height=40, width=760, border_color="#10975D
 buttonframe.pack(pady=10, padx=10, side='top')
 buttonframe.pack_propagate(False)
 
-textframe = ctk.CTkTextbox(appframe, height=920, width=760, border_color="#10975D", border_width=2, wrap='word')
 textframe.pack(pady=10, padx=10, side='top', fill='both', expand=True)
 
 sumbutton = ctk.CTkButton(buttonframe, fg_color="#10975D", hover_color="#0E7B4C", text="Summarize", command=summarize)
@@ -179,5 +191,12 @@ checkbutton.pack(side='left', pady=5, padx=5)
 if len(notes) < 1:
     notes.append("My Note")
     refreshnotes()
+
+refreshnotes()
+
+if notes:
+    selectnote(0)
+
+is_loading = False 
 
 window.mainloop()
